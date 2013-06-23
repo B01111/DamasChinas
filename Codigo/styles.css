@@ -1,0 +1,125 @@
+body{
+	background: #FFB033;
+	margin:0;
+}
+
+ul.tabs{					/*Barra de tabs*/
+    padding: 13px 0px;
+    font-size: 0;
+    margin: 0% 10%;
+    list-style-type: none;
+    text-align: center;
+    border: 1px solid #000000;
+	border-top:none;
+	border-bottom:none;
+    background: #FFAA11;
+}
+
+ul.topBar{
+	background:#000000;
+	border:0;
+	list-style-type: none;
+	margin:0;
+	padding:10px 50px;
+	position:relative;
+	text-align: right;
+}
+
+ul.topBar li{
+	background: #FFEE33;
+	border: 1px solid #000000;
+	display: inline;
+	font: bold 12px Verdana;
+	margin: 0;
+	padding: 9px 20px;
+	text-decoration: none;
+}
+        
+ul.tabs li{				/*Tabs*/
+    display: inline;
+    margin: 0px;
+	font: bold 14px Verdana;
+    text-decoration: none;
+    position: relative;
+    z-index: 1;
+    padding: 10px 20px;
+    border: 3px groove #000000;
+    color: #000;
+    background: #FFEE33;
+    outline:none;
+}
+ul.tabs li:hover {
+	background: #FFFFCC;
+	border: 3px groove #000000;
+}	
+
+ul.tabs li.active{
+	background: #484;
+	border: 3px ridge #000000;
+}
+
+table.fechas{
+	background:#F6F9FC;
+	border: 3px inset #FFAA11;
+	margin: 0 10%;
+	padding-bottom: 30px;
+	position:relative;
+	text-align:center;
+	width: 80%
+}
+
+table.fechas tr{
+	border: 1px solid #FFAA11;
+	font-size: 0;
+	margin: 0;
+	text-align: center;
+}
+
+table.fechas tr th{
+	border: 1px solid black;
+	font: bold 18px Verdana;
+	margin: 0;
+	text-align:center;
+}
+
+table.fechas tr th.tHeader{
+	border: 0;
+	font: bold 22px Verdana;
+	margin: 0;
+	text-align:center;
+}
+
+table.fechas tr td{
+	border: 1px solid black;
+	font: normal 16px Verdana;
+	margin: 0;
+	text-align:center;
+}
+
+#tabbedPanel{
+}
+
+#cuadroTitulo{
+	background:#FFAA11;
+	border: 1px solid #000000;
+	border-bottom: none;
+	font: bold 24px Verdana;
+	margin: 5% 10% 0;
+	padding: 20px 0;
+	position: relative;
+	text-align: center;
+}
+ 
+#tabContentPanel{
+    display: block;
+}
+
+.contentBox{
+    background-color:#FFF;
+    border: 1px solid #000000;
+    border-top: 6px solid #000000;
+	font: normal 18px Verdana;
+	margin: 0 10%;
+    padding: 20px 30px;
+	text-align: center;
+}
