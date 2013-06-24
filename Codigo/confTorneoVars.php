@@ -32,11 +32,11 @@
 				
 				$SQL = "INSERT INTO torneo (Nombre,Creador,Participantes,JugadoresXEquipo,FaseGrupos,IdaEliminatoria,Estado) VALUES ('$nombreTorneo','$alias',$equipos,$participantes,$faseGrupos,$ida,0)";
 				$result = mysql_query($SQL);
-				$rows = mysql_affected_rows();
+				$id = mysql_insert_id($connection);
 				mysql_close($connection);
-				if($rows > 0){
+				if($id > 0){
 					SESSION_START();
-					$_SESSION['idTorneo'] = mysql_insert_id($connection);
+					$_SESSION['idTorneo'] = $id;
 					$_SESSION['nombreTorneo'] = $nombreTorneo;
 					$_SESSION['equipos'] = $equipos;
 					$_SESSION['participantes'] = $participantes;

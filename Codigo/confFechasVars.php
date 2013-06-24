@@ -18,9 +18,12 @@
 	$tiempoJ = $_SESSION['tiempoJ'];
 	$tiempoT = $_SESSION['tiempoT'];
 	$capture = $_SESSION['capture'];
+	if(!$capture){
+		$capture = 0;
+	}
 	
 	$tablasG = $tablasR1 = $tablasR2 = $tablasCuartos = $tablasSemi = $tablasFinal = "";
-	if($grupos){
+	if($grupos){	//Crea tablas de grupos
 		$grupo = array();
 		$ngrupos = $equipos/4;
 		$nfases = log($ngrupos*2,2);
@@ -36,6 +39,7 @@
 	}else{
 		$nfases = log($equipos,2);
 	}
+	
 	switch($nfases){
 		case 5:
 			$grupo = array();
@@ -133,26 +137,25 @@
 				$grupo[0]='B vs A';
 				$tablasFinal .= crearTablaFecha('Final (Vuelta)',$grupo).'<br>';
 			}
-		}
+	}
 	
-	if(isset($_POST['fecha'])){
+	if(isset($_POST['fecha'])){	//Buscar conflictos en las fechas
 		$fecha = $_POST['fecha'];
 		$connection = dbConnect();
 		$conflicto = false;
 		$offset = 0;
-		$maxFA = "0001-01-01T00:00";
+		$maxFA = "0001-01-01T00:00";	//Equivalente a iniciar una variable en 0
 		if(!$connection){
 			$error = 'Error al conectarse a la base de datos'.'<BR>';
 		}else{
 			if($ngrupos > 0){
 				$i = 0;
-				while(!($conflicto) && $i<$ngrupos){
+				while(!($conflicto) && $i<$ngrupos){//verifica conflictos entre las fechas de cada grupo
 					$offset = $i*6;
 					$maxFA = max($fecha[0+$offset],$fecha[1+$offset]);
 					$minFP = min($fecha[2+$offset],$fecha[3+$offset]);
 					if(interseca($maxFA,$minFP,$tiempoJ) || $maxFA > $minFP){
 						$conflicto = true;
-						
 					}else{
 						$maxFA = max($fecha[2+$offset],$fecha[3+$offset]);
 						$minFP = min($fecha[4+$offset],$fecha[5+$offset]);
@@ -163,11 +166,11 @@
 					$i++;
 				}
 				$offset = $ngrupos*6;
-				$maxFA = max(array_slice($fecha,0,$offset));
+				$maxFA = max(array_slice($fecha,0,$offset));//La fecha mas posterior de los grupos
 			}
 			$fechasFase = array();
-			if($ida){
-				for($fase = (5-$nfases);$fase < 5;$fase++){
+			if($ida){//Busca conflictos para cada fase con ida y vuelta
+				for($fase = (5-$nfases);$fase < 5;$fase++){	
 					$npartidas = 32/(pow(2,$fase));
 					$fechasFase[$fase] = array_slice($fecha,$offset,$npartidas);
 					$fechasIda[$fase] =  array_slice($fecha,$offset,($npartidas/2));
@@ -185,7 +188,7 @@
 					$maxFA = max($fechasFase[$fase]);
 					$offset += $npartidas;
 				}
-			}else{
+			}else{	//Busca conflictos para fases simples
 				for($fase = (5-$nfases);$fase < 5;$fase++){
 					$npartidas = 16/(pow(2,$fase));
 					$fechasFase[$fase] = array_slice($fecha,$offset,$npartidas);
@@ -197,90 +200,178 @@
 					$offset += $npartidas;
 				}
 			}
-			if($conflicto){
-				$error .= "Existe un conflicto con las fechas";
+			if($conflicto){		//De no existir conflicto procede a insertar la fechas a la base de datos
+				$error = "<H3>Existe un conflicto con las fechas</H3>";
 			}else{
 				$offset = 0;
-				if($ngrupos > 0){
+				if($ngrupos > 0){	//Inserta las partidas de los grupos en la bases de datos
 					for($i = 1; $i <= $ngrupos;$i++){
 						for($j = 0;$j < 6;$j++){
-							$SQL =  "INSERT INTO partida(TiempoMaxPartida, TiempoMaxTurno, Capture, Estado, Turno) VALUES ('
-											$tiempoJ ','$tiempoT',$capture,HEX(0),1)";
+							$SQL =  "INSERT INTO partida(TiempoMaxPartida, TiempoMaxTurno, Capture, Estado, Turno) VALUES ('$tiempoJ','$tiempoT',$capture,HEX(0),1)";
 							$result = mysql_query($SQL);
 							$idPartida = mysql_insert_id($connection);
 							$offset = ($i-1)*6;
 							$fechaPartida = $fecha[$j+$offset];
 							if($idPartida <= 0){
-								$error = "Error al insertar las partidas";
+								$error = "<H3>Error al insertar partidas</H3>";
 							}else{
-								$SQL =  "INSERT INTO calendario(IdPartida, IdTorneo, Fecha, Grupo, DependeDeGrupo) VALUES ('
-											$idPartida,$idTorneo,$fechaPartida,$i,0)";
-								$result = mysql_query($SQL);
-											
+								$SQL =  "INSERT INTO calendario(IdPartida, IdTorneo, Fecha, Grupo, DependeDeGrupo) VALUES (
+											$idPartida,$idTorneo,'$fechaPartida',$i,0)";
+								$result = mysql_query($SQL);	
+								$rows = mysql_affected_rows();
+								if($rows <= 0){
+									$error = "<H3>Error al insertar calendario</H3>";
+								}	
 							}
 						}				
 					}
 					$offset = $ngrupos*6;
 				}
-				$idsFase = $idsIdaFase = $idsVueltaFase = array();
+				//Inserta las partidas de las fases eliminatorias
+				$idPartidas = array();
 				if($ida){
-					for($fase = (5-$nfases);$fase < 5;$fase++){
-						$npartidas = 32/(pow(2,$fase));
-						$fechasFase[$fase] = array_slice($fecha,$offset,$npartidas);
-						$fechasIda[$fase] =  array_slice($fecha,$offset,($npartidas/2));
-						$fechasVuelta[$fase] =  array_slice($fecha,($offset+($npartidas/2)),($npartidas/2));
-						
-						$i = 0;
-						foreach($fechasIda[$fase] as $fechaPartida){
-							$SQL =  "INSERT INTO partida(TiempoMaxPartida, TiempoMaxTurno, Capture, Estado, Turno) VALUES ('
-											$tiempoJ ','$tiempoT',$capture,HEX(0),1)";
+					for($fase =(5-$nfases);$fase < 5;$fase++){
+						$npartidas = 16/(pow(2,$fase));
+						$fechasFase[$fase]["ida"] = array_slice($fecha,$offset,$npartidas);
+						$fechasFase[$fase]["vuelta"] = array_slice($fecha,$offset+$npartidas,$npartidas);
+						$offset += $npartidas*2;
+						for($i = 0; $i < $npartidas;$i++){//Primero la ida
+							$SQL =  "INSERT INTO partida(TiempoMaxPartida, TiempoMaxTurno, Capture, Estado, Turno) VALUES ('$tiempoJ','$tiempoT',$capture,HEX(0),1)";
 							$result = mysql_query($SQL);
-							$idsIdaFase[$fase][$i] = mysql_insert_id($connection);
-							if($idsIdaFase[$fase][$i] <= 0){
-								$error = "Error al insertar las partidas";
+							$idPartida = $idPartidas[$fase]["ida"][$i] = mysql_insert_id($connection);
+							$fechaPartida = $fechasFase[$fase]["ida"][$i];
+							if($idPartida <= 0){
+								$error = "<H3>Error al insertar partidas</H3>";
 							}else{
-								$grupoPertenece = 0;
-								if(($ngrupos > 0) && ($fase == 5-$nfases)){
-									$grupoPertenece = floor(($i+2)/2);
+								if($fase == (5-$nfases) && $ngrupos > 0){
+									$SQL =  "INSERT INTO calendario(IdPartida, IdTorneo, Fecha, Grupo, DependeDeGrupo) VALUES ($idPartida,$idTorneo,'$fechaPartida',0,($i+1))";
+								}else{
+									$SQL =  "INSERT INTO calendario(IdPartida, IdTorneo, Fecha, Grupo, DependeDeGrupo) VALUES ($idPartida,$idTorneo,'$fechaPartida',0,0)";
 								}
-								$SQL =  "INSERT INTO calendario(IdPartida, IdTorneo, Fecha, Grupo, DependeDeGrupo) VALUES ('
-											$idsIdaFase[$fase][$i],$idTorneo,$fechaPartida,0,$grupoPertenece)";
-								$result = mysql_query($SQL);		
-							}
-							$i++;				
-						}
-						foreach($fechasVuelta[$fase] as $fechaPartida){
-							$SQL =  "INSERT INTO partida(TiempoMaxPartida, TiempoMaxTurno, Capture, Estado, Turno) VALUES ('
-											$tiempoJ ','$tiempoT',$capture,HEX(0),1)";
+								$result = mysql_query($SQL);	
+								$rows = mysql_affected_rows();
+								if($rows <= 0){
+									$error = "<H3>Error al insertar calendario</H3>";
+								}
+							}//Ahora la vuelta
+							$SQL =  "INSERT INTO partida(TiempoMaxPartida, TiempoMaxTurno, Capture, Estado, Turno) VALUES ('$tiempoJ','$tiempoT',$capture,HEX(0),1)";
 							$result = mysql_query($SQL);
-							$idsVueltaFase[$fase][$i] = mysql_insert_id($connection);
-							if($idsVueltaFase[$fase][$i] <= 0){
-								$error = "Error al insertar las partidas";
+							$idPartida = $idPartidas[$fase]["vuelta"][$i] = mysql_insert_id($connection);
+							$fechaPartida = $fechasFase[$fase]["vuelta"][$i];
+							if($idPartida <= 0){
+								$error = "<H3>Error al insertar partidas</H3>";
 							}else{
-								$grupoPertenece = 0;
-								if(($ngrupos > 0) && ($fase == 5-$nfases)){
-									$grupoPertenece = floor(($i+2)/2);
+								if($fase == (5-$nfases) && $ngrupos > 0){
+									$SQL =  "INSERT INTO calendario(IdPartida, IdTorneo, Fecha, Grupo, DependeDeGrupo) VALUES ($idPartida,$idTorneo,'$fechaPartida',0,($i+1))";
+								}else{
+									$SQL =  "INSERT INTO calendario(IdPartida, IdTorneo, Fecha, Grupo, DependeDeGrupo) VALUES ($idPartida,$idTorneo,'$fechaPartida',0,0)";
 								}
-								$SQL =  "INSERT INTO calendario(IdPartida, IdTorneo, Fecha, Grupo, DependeDeGrupo) VALUES ('
-											$idsVueltaFase[$fase][$i],$idTorneo,$fechaPartida,0,$grupoPertenece)";
-								$result = mysql_query($SQL);		
+								$result = mysql_query($SQL);	
+								$rows = mysql_affected_rows();
+								if($rows <= 0){
+									$error = "<H3>Error al insertar calendario</H3>";
+								}
 							}
-							$i++;				
 						}
-						$offset += $npartidas;
 					}
 				}else{
-					for($fase = (5-$nfases);$fase < 5;$fase++){
+					for($fase =(5-$nfases);$fase < 5;$fase++){
 						$npartidas = 16/(pow(2,$fase));
 						$fechasFase[$fase] = array_slice($fecha,$offset,$npartidas);
-						
-						
 						$offset += $npartidas;
+						for($i = 0; $i < $npartidas;$i++){
+							$SQL =  "INSERT INTO partida(TiempoMaxPartida, TiempoMaxTurno, Capture, Estado, Turno) VALUES ('$tiempoJ','$tiempoT',$capture,HEX(0),1)";
+							$result = mysql_query($SQL);
+							$idPartida = $idPartidas[$fase][$i] = mysql_insert_id($connection);
+							$fechaPartida = $fechasFase[$fase][$i];
+							if($idPartida <= 0){
+								$error = "<H3>Error al insertar partidas</H3>";
+							}else{
+								if($fase == (5-$nfases) && $ngrupos > 0){
+									$SQL =  "INSERT INTO calendario(IdPartida, IdTorneo, Fecha, Grupo, DependeDeGrupo) VALUES ($idPartida,$idTorneo,'$fechaPartida',0,($i+1))";
+								}else{
+									$SQL =  "INSERT INTO calendario(IdPartida, IdTorneo, Fecha, Grupo, DependeDeGrupo) VALUES ($idPartida,$idTorneo,'$fechaPartida',0,0)";
+								}
+								$result = mysql_query($SQL);	
+								$rows = mysql_affected_rows();
+								if($rows <= 0){
+									$error = "<H3>Error al insertar calendario</H3>";
+								}
+							}
+						}
 					}
+				}
+				if($nfases > 1){
+					if($ida){
+						for($fase = (5-$nfases+1) ; $fase < 5; $fase++){
+							$npartidas = count($idPartidas[$fase]["ida"]);
+							for($i = 0; $i < $npartidas;$i++){	
+								$dependiente = $idPartidas[$fase]["ida"][$i];//Primero las de ida
+								$dependencia1 = $idPartidas[$fase-1]["ida"][2*$i];
+								$dependencia2 = $idPartidas[$fase-1]["ida"][2*$i+1];
+								$SQL = "INSERT INTO subfasede(dependiente,dependencia1,dependencia2) VALUES($dependiente,$dependencia1,$dependencia2)";
+								$result = mysql_query($SQL);	
+								$rows = mysql_affected_rows();
+								if($rows <= 0){
+									$error = "<H3>Error al insertar dependencia de fases</H3>";
+								}
+								$dependencia1 = $idPartidas[$fase-1]["vuelta"][2*$i];
+								$dependencia2 = $idPartidas[$fase-1]["vuelta"][2*$i+1];
+								$SQL = "INSERT INTO subfasede(dependiente,dependencia1,dependencia2) VALUES($dependiente,$dependencia1,$dependencia2)";
+								$result = mysql_query($SQL);	
+								$rows = mysql_affected_rows();
+								if($rows <= 0){
+									$error = "<H3>Error al insertar dependencia de fases</H3>";
+								}
+								
+								$dependiente = $idPartidas[$fase]["vuelta"][$i];//Ahora las de vuelta
+								$dependencia1 = $idPartidas[$fase-1]["ida"][2*$i];
+								$dependencia2 = $idPartidas[$fase-1]["ida"][2*$i+1];
+								$SQL = "INSERT INTO subfasede(dependiente,dependencia1,dependencia2) VALUES($dependiente,$dependencia1,$dependencia2)";
+								$result = mysql_query($SQL);	
+								$rows = mysql_affected_rows();
+								if($rows <= 0){
+									$error = "<H3>Error al insertar dependencia de fases</H3>";
+								}
+								$dependencia1 = $idPartidas[$fase-1]["vuelta"][2*$i];
+								$dependencia2 = $idPartidas[$fase-1]["vuelta"][2*$i+1];
+								$SQL = "INSERT INTO subfasede(dependiente,dependencia1,dependencia2) VALUES($dependiente,$dependencia1,$dependencia2)";
+								$result = mysql_query($SQL);	
+								$rows = mysql_affected_rows();
+								if($rows <= 0){
+									$error = "<H3>Error al insertar dependencia de fases</H3>";
+								}
+								
+							}
+						}
+					}else{
+						for($fase = (5-$nfases+1) ; $fase < 5; $fase++){
+							$npartidas = count($idPartidas[$fase]);
+							for($i = 0; $i < $npartidas;$i++){
+								$dependiente = $idPartidas[$fase][$i];
+								$dependencia1 = $idPartidas[$fase-1][2*$i];
+								$dependencia2 = $idPartidas[$fase-1][2*$i+1];
+								$SQL = "INSERT INTO subfasede(dependiente,dependencia1,dependencia2) VALUES($dependiente,$dependencia1,$dependencia2)";
+								$result = mysql_query($SQL);	
+								$rows = mysql_affected_rows();
+								if($rows <= 0){
+									$error = "<H3>Error al insertar dependencia de fases</H3>";
+								}
+							}
+						}
+					}
+				}
+				if(!$error){
+					$SQL = "UPDATE torneo SET Estado = 1 WHERE ID = $idTorneo";
+					$result = mysql_query($SQL);	
+					$rows = mysql_affected_rows();
+					if($rows <= 0){
+						$error = "<H3>Error al actualizar estado del torneo</H3>";
+					}
+					header("Location: infoTorneo.php");
 				}
 				mysql_close($connection);
 			}
-			
 		}
 	}
 ?>

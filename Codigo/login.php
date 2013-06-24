@@ -7,30 +7,33 @@
 		include "dbConnect.php";
 		$alias = "";
 		$error = "";
-		if($_SERVER['REQUEST_METHOD'] == 'POST'){
-			$alias = htmlspecialchars($_POST['alias']);
-			$passw = htmlspecialchars($_POST['passw']);
+		if(isset($_SERVER['HTTP_REFERER'])){
+			$pos = strpos($_SERVER['HTTP_REFERER'],'login.php');
+			if($pos){
+				$alias = htmlspecialchars($_POST['alias']);
+				$passw = htmlspecialchars($_POST['passw']);
 			
-			$connection = dbConnect();
-			if(!$connection){
-				$error = 'Error al conectarse a la base de datos'.'<BR>';
-			}else{
-				$SQL = "SELECT * FROM usuario WHERE Alias = '$alias' AND Contrasena = '$passw'";
-				$result = mysql_query($SQL);
-				if(!$result){
-					$error = 'Usuario o password incorrecto'.'<BR>';
-					mysql_close($connection);
+				$connection = dbConnect();
+				if(!$connection){
+					$error = '<H3>Error al conectarse a la base de datos</H3>';
 				}else{
-					$num_rows = mysql_num_rows($result);
-					mysql_close($connection);
-					session_start();
-					if ($num_rows <= 0) {
-						$error = 'Usuario o password incorrecto'.'<BR>';
-						SESSION_UNSET();
-						SESSION_DESTROY();
+					$SQL = "SELECT * FROM usuario WHERE Alias = '$alias' AND Contrasena = '$passw'";
+					$result = mysql_query($SQL);
+					if(!$result){
+						$error = '<H3>Usuario o password incorrecto</H3>';
+						mysql_close($connection);
 					}else{
-						$_SESSION['alias'] = $alias;
-						header ("Location: configTorneo.php");
+						$num_rows = mysql_num_rows($result);
+						mysql_close($connection);
+						session_start();
+						if ($num_rows <= 0) {
+							$error = '<H3>Usuario o password incorrecto</H3>';
+							SESSION_UNSET();
+							SESSION_DESTROY();
+						}else{
+							$_SESSION['alias'] = $alias;
+							header ("Location: configTorneo.php");
+						}
 					}
 				}
 			}
@@ -43,7 +46,7 @@
 </head>
 <body>
 	<FORM NAME ="loginForm" METHOD ="POST" ACTION = "login.php">
-		<p><?php print $error?></p>
+		<?php print $error?>
 		<div id="cuadroTitulo">Damas Chinas</div>
 		<div class="contentBox">
 			Username:<INPUT TYPE="text" NAME="alias" PLACEHOLDER="Username" VALUE= <?php print $alias?>><br>
